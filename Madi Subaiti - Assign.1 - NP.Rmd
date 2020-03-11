@@ -1,0 +1,185 @@
+# IE - Master in Business Analytics and Big Data
+Recommendation Systems
+
+Building a Non Personalized Recommendation Engine
+
+Author: Madi Subaiti
+
+========================================================
+
+# Initialization
+
+Import libraries
+
+```{r}
+library(data.table);
+library(dplyr)
+library(ggplot2)
+library(ggrepel)
+```
+
+
+Load the critics dataset.
+
+```{r}
+folder_path <- "/Users/madisubaiti/Desktop/BIG DATA/TERM 2/Recommendation Engines/IE-Lab1/Data"
+critics <- fread(file.path(folder_path, "critics.csv"));
+
+```
+
+
+# 1) Top 5 Movies, by rating mean
+Calculate mean rating for each movie, ordered with the highest rating listed first, and plot the top 5.
+
+```{r fig.width=7, fig.height=6}
+#class
+mean_rate = critics[2:length(critics)];
+mean_rating = sort(colMeans(critics, na.rm=T), decreasing=T);
+mean_rating[1:5];
+
+
+    #1 --- 
+movie_ratings <- critics
+movie_ratings$User <- NULL
+mean_ratings <- sort(colMeans(movie_ratings, na.rm = T), decreasing = T)
+mean_ratings[1:5]
+
+#-------------------------
+**Expected result**:
+3.600000, 'The Shawshank Redemption'
+3.266667, 'Star Wars IV - A New Hope'
+3.222222, 'Blade Runner'
+3.166667, 'Groundhog Day'
+3.062500, 'The Silence of the Lambs'
+
+```
+
+# 2) Top 5 Movies, by rating distribution
+Calculate the percentage of ratings for each movie that are 4 stars or higher. Order with the highest percentage first, and plot the top 5 movies with more high ratings distribution.
+
+
+
+```{r fig.width=7, fig.height=6}
+
+#class
+topperc <- sort(apply(movie_ratings, 2, 
+                      function(x) sum(x >= 4, na.rm=T)/sum(x>=0, na.rm=T)),
+                decreasing=T)
+topperc[1:5]
+
+
+    #2 --- 
+func <- function(x){
+ sum(x>=4,na.rm=T)/sum(x>=0,na.rm=T)
+  }
+topperc<-sort(apply(movie_ratings,2,func),decreasing=T)
+print(topperc)
+topperc[1:5]
+
+
+#-------------------------
+**Expected result**:
+0.7000000, 'The Shawshank Redemption'
+0.5333333, 'Star Wars IV - A New Hope'
+0.5000000, 'Gladiator'
+0.4444444, 'Blade Runner'
+0.4375000, 'The Silence of the Lambs'
+
+```
+
+
+# 3) Top 5 Movies, by quantity of ratings
+Count the number of ratings for each movie, order the one with most number of ratings first, submit the top 5.
+number_of_ratings <- data.frame()
+counting <- count(number_of_ratings, vars = NULL, wt_var = NULL)
+
+
+```{r fig.width=7, fig.height=6}
+
+#3 --- 
+#need to null the user column and get a count of how many ratings each movie has without nulls
+
+number_ratings <- colSums(!is.na(critics) | critics != "", na.rm = TRUE)
+number_ratings$User <- NULL
+top_num <- sort(number_ratings, decreasing=TRUE)
+top_num[1:5]
+
+#or
+
+number_rating2<-sort(apply(critics[,-"User"],2,function(x){
+  sum(x>=0,na.rm=T)}),decreasing=T)
+
+print(head(number_rating2,5))
+
+
+#-------------------------
+**Expected result**:
+17, 'Toy Story'
+16, 'The Silence of the Lambs'
+15, 'Star Wars IV - A New Hope'
+14, 'Star Wars VI - Return of the Jedi'
+13, 'Independence Day'
+
+```
+
+# 4) People who watched Star Wars IV also watched ...
+Calculate movies that most often occur with other movie. For each movie, calculate the percentage of the other movie raters who also rated that movie. Order with the highest percentage first, and submit the top 5. Select "Star.Wars.IV...A.New.Hope" movie by defaut. Use the (x+y)/x method.
+
+
+
+```{r fig.width=7, fig.height=6}
+# 4 ---
+
+#vectorizing and filtering according to users who have seen StarWars VI
+
+
+
+crtcs <- as.vector(!is.na(critics$"Star Wars IV - A New Hope">= 1))
+seen_SWIV <- critics[,-c("User","Star Wars IV - A New Hope"  )][crtcs,]
+
+count_movie = sum(!is.na(critics$`Star Wars IV - A New Hope`))
+
+funct <- function(x){
+  sum(!is.na(x))/count_movie
+}
+
+#filtering top 5
+top<-sort(apply(seen_SWIV,2,funct),decreasing=T)
+print(head(top,5))
+
+#-------------------------
+Top Occurences:
+0.9333333, 'Toy Story'
+0.8666667, 'Star Wars: Episode VI - Return of the Jedi'
+0.8000000, 'The Silence of the Lambs'
+0.7333333, 'Independence Day'
+0.6666667, 'Total Recall'
+
+```
+
+# 5) People who liked Babe also liked ...
+Calculate the movies better rated of people who liked a movie. Select the people who liked the movie "Babe" (4 or 5 stars) and provide the top 5 movies they liked most.
+
+
+
+```{r fig.width=7, fig.height=6}
+
+#5----
+crtcs <- as.vector(!is.na(critics$Babe >=4))
+Babe <- critics[,-c("User","Babe"  )][crtcs,]
+
+ratings <- head(sort(colMeans(Babe, na.rm = T), decreasing = T),5)
+ratings;
+
+#-------------------------
+**Expected result**:
+5.000, 'Pulp.Fiction'
+5.000, 'Groundhog.Day'
+4.500, 'The.Shawshank.Redemption'
+4.333, 'Toy.Story'
+4.000, 'Blade.Runner'
+```
+
+
+# 6) MovieLens
+Explore a real data set and provide non-personalized ratings. You can use the MovieLens database. You can find MovieLens' dataset here: http://files.grouplens.org/datasets/movielens/ml-10m-README.html

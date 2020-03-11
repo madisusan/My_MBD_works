@@ -1,0 +1,227 @@
+# IE - Master in Business Analytics and Big Data
+Recommendation Systems
+
+Building a Collaborative Filtering Engine
+
+Author: Madi Subaiti
+
+========================================================
+
+# Initialization
+
+Import libraries
+
+```{r}
+library(data.table)
+library(ggplot2)
+library(ggrepel)
+library(dplyr)
+library(tidyverse)
+library(magrittr)
+
+```
+
+
+
+Load the critics dataset.
+
+```{r}
+folder_path <- "/Users/madisubaiti/Desktop/BIG DATA/TERM 2/Recommendation Engines/IE-Lab1/Data"
+critics <- fread(file.path(folder_path, "critics.csv"));
+critics;
+View(critics)
+```
+
+
+
+
+# 1) Pearson correlation coefficient 
+Calculate the Pearson correlation coefficient between Sophia and Nuria
+
+
+```{r fig.width=7, fig.height=6, eval=T, echo=F}
+#1---
+
+#Making DF and Transposing the dataset  
+critics_x <- as.data.frame(critics[, -1])
+critics_t <- t(critics_x)
+# Assigning names to the column since it is not numerica has been deleted
+colnames(critics_t) <- t(critics[,1])
+rownames(critics_x) <- t(critics[,1])
+
+# Correlating Nuria and Sophia using cor function.
+PCC1 <- as.data.frame(na.omit(critics_t[,c("Nuria", "Sophia")]))
+print(cor(PCC1[,1],PCC1[,2]))
+
+
+
+
+#b)--- [don't run] -----
+
+# Transpose the dataset
+crit2<-t(critics[,2:21]) 
+
+# Since they were names not numeric values need to give them names
+colnames(crit2)<-t(critics[,1]) # Assign names to columns
+
+#correlate
+cor(crit2,use="complete.obs") 
+
+cor(crit2,use="pairwise.complete.obs") # use pairwise deletion
+
+crit2<-as.data.frame(crit2)
+with(crit2, cor(Sophia, Nuria, use = "complete.obs", method = "pearson"))
+
+
+
+#-------------------
+#**Expected correlation between Sophia and Nuria**: 
+0.3651484
+
+```
+
+# 2) Compare two movie critics
+Using the calculated Pearson correlation in the previous section. Compare and show the movie ratings for Sophia and Nuria on a scatter plot. How is this compared with the same ratings of Maria and Nerea on a scatter plot? What about Chris and Jim? What it means?
+  
+```{r fig.width=7, fig.height=6}
+  
+#2----
+PCC2 <- as.data.frame(na.omit(critics_t[,c("Maria", "Nerea")]))
+print(cor(PCC1[,1],PCC1[,2]))
+
+PCC3 <- as.data.frame(na.omit(critics_t[,c("Chris", "Jim")]))
+print(cor(PCC1[,1],PCC1[,2]))
+
+#Scatter plot for Sophia and Nuria
+plot1 = PCC1 %>%
+  ggplot(aes(x=Nuria, y=Sophia)) +
+  geom_point(col="blue") +
+  labs(x="Nuria Ratings", y="Sophia Ratings", title="Correlation of Sophia vs. Nuria")+
+  geom_text_repel(aes(label=rownames(PCC1))) + 
+  coord_fixed(1, xlim = c(1, 5), ylim = c(1,5))
+  print(plot1);
+  
+
+# Scatter plot of Maria and Nerea
+plot2 = PCC2 %>%
+  ggplot(aes(x=Maria, y=Nerea)) +
+  geom_point(col="red") +
+  labs(x="Maria Ratings", y="Nerea Ratings", title="Correlation of Maria vs. Nerea")+
+  geom_text_repel(aes(label=rownames(PCC2))) + 
+  coord_fixed(1, xlim = c(1, 5), ylim = c(1,5))
+  print(plot2);
+
+# Scatter plot of Chris and Jim
+
+plot3 = PCC3 %>%
+  ggplot(aes(x=Chris, y=Jim)) +
+  geom_point(col="purple") +
+  labs(x="Chirs Ratings", y="Jim Ratings", title="Correlation of Chris vs. Jim")+
+  geom_text_repel(aes(label=rownames(PCC3))) + 
+  coord_fixed(1, xlim = c(1, 5), ylim = c(1,5))
+  print(plot3);
+
+
+
+
+```  
+  
+
+# 3) Top Recommendations 
+Return the top-5 recommended movies for Sophia Use the weighted average of every other critic's rankings.
+
+
+
+```{r fig.width=7, fig.height=6}
+#3----
+
+# creating distict columns for movies, ratings and weighted averages from each user rating 
+critics1 <- critics %>%
+  gather("movie", "rating", -User) %>%
+  group_by(User) %>%
+  mutate(mean = mean(rating, na.rm = TRUE)) %>%
+  ungroup()
+
+# Listing movies Sophia hasn´t seen or rated by filtering out her ratings
+sophia_movies_not_seen <- critics1 %>%
+  filter(User == "Sophia" & is.na(rating)) %>%
+  extract2("movie")
+
+# Finding Sophia´s movie ratings 
+sophia_ratings <- critics1 %>%
+  filter(User == "Sophia") %>%
+  extract2("rating")
+
+# Correlate between Sophia´s ratings and the rest by creating new variables eliminating the nulls
+sophia_corr <- critics1 %>%
+  group_by(User) %>%
+  mutate(
+    pearson = cor(rating, sophia_ratings, use = "complete.obs"),
+    pearson_abs = abs(pearson)
+  ) %>%
+  ungroup()
+
+# The movies recommended to Sophia filtering to movies not rated by her
+sophia_recom <- sophia_corr %>%
+  filter(movie %in% sophia_movies_not_seen) %>%
+  group_by(movie) %>%
+  summarise(
+    score = sum((rating - mean) * pearson, na.rm = TRUE) / (sum(pearson_abs) - 1)) %>%
+  mutate(score = score + mean(sophia_ratings, na.rm = TRUE)) %>%
+  arrange(desc(score)) 
+  
+  head(sophia_recom,5)
+
+
+#------
+#**Expected result**:
+3.7917013044215, 'The Matrix'
+3.50776533175371, 'Forrest Gump'     
+3.33118834864677, 'The Sixth Sense' 
+3.11491825315719, 'Shakespeare in Love'
+2.9124513228665, 'Blade Runner'
+```
+
+# 4) Top similar critics
+Return the top 5 critics that are most similar to Sophia. 
+
+
+
+```{r fig.width=7, fig.height=6}
+#4 ----
+
+# variable for critic
+critic <-"Sophia"
+
+#getting the position of sophia
+position <- grep(critic, rownames(critics_x))
+no_rate <- c(is.na(critics_x[position,]))
+
+#  an empty vector to iterate the correlations of sophia with other users
+
+correlations<- c()
+for (i in 1:ncol(critics_t))
+  {
+  PCC1 <-na.omit(as.data.frame(cbind(critics_t[,i],critics_t[,critic])))
+  correlations[i] <- cor(PCC1[,1],PCC1[,2])
+  ;
+}
+
+corr_df <- data.frame(correlation = correlations[-position],
+                              row.names = rownames(critics_x[-position,]))
+
+
+head(corr_df[order(-corr_df$correlation), , drop = FALSE],5)
+
+
+
+
+
+#-----------
+**Expected result**:
+0.9449112, 'Rachel'
+0.5976143, 'Ana' 
+0.5789794, 'Oriol'
+0.4925922, 'Maria'
+0.4273247, 'Carles'
+```
