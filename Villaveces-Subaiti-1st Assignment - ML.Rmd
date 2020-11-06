@@ -1,5 +1,5 @@
 ---
-title: "1st Assignment"
+title: " Assignment"
 subtitle: "Mada Susan Subaiti-Juliana Villaveces"
 output: 
   html_document:
@@ -8,8 +8,7 @@ output:
 author: Machine Learning II 
 ---
 
-For this work we used as a pathtrack the walkthrough from the profesor and applied what we saw in class.
-First we install the libraries including the code. 
+
 
 ## 1.Preparing the code
 ### 1.1.Library Installations
